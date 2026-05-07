@@ -366,6 +366,11 @@ export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
   const onPointerCancel = () => { swipeRef.current = null }
 
   // ── Native shell: full-bleed, real OS status bar, no mockup chrome ──
+  // Outer container fills the entire viewport (any device, any orientation).
+  // Inner container caps at 480 px and centers horizontally so the mobile-
+  // sized layout doesn't stretch awkwardly on tablets / iPads / landscape
+  // phones. `dvh` (dynamic viewport height) keeps the layout correct when
+  // iOS Safari's toolbars expand or collapse during scroll.
   if (isCapacitorNative) {
     return (
       <div
@@ -373,19 +378,34 @@ export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         style={{
-          // Use 100dvh so iOS Safari's URL bar resize doesn't clip the
-          // bottom nav. dvh is supported in Capacitor's WebView (recent
-          // WebKit + Chromium).
           width: '100vw',
           minHeight: '100dvh',
           background: `linear-gradient(180deg, ${C.bg} 0%, ${C.p4} 100%)`,
-          position: 'relative',
           fontFamily: FONTS.body,
           touchAction: 'pan-y',
           overflow: 'hidden',
+          // Honour iOS / Android system UI insets so notches and the home
+          // indicator don't overlap the React UI. `env(safe-area-inset-*)`
+          // resolves to 0 on devices without notches, so it's always safe
+          // to apply.
+          paddingTop:    'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          // Center the mobile-sized React tree on tablets / iPads.
+          display: 'flex',
+          justifyContent: 'center',
         }}
       >
-        <div ref={scrollRef} style={{ minHeight: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div
+          ref={scrollRef}
+          style={{
+            width: '100%',
+            maxWidth: 480,
+            minHeight: '100dvh',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            position: 'relative',
+          }}
+        >
           {children}
         </div>
       </div>

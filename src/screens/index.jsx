@@ -162,7 +162,19 @@ export const LoginScreen = ({ onPrivacy, onAgreement }) => {
   }
 
   return (
-    <div style={{ padding: '0 28px 40px', animation: 'fadeIn .35s ease' }}>
+    <div
+      style={{
+        // Flex column so the auth card vertically centers on tall screens
+        // (iPad / Pixel 8 Pro) instead of clinging to the top with a wall
+        // of empty lila beneath it.
+        minHeight: screenMinHeight(700),
+        padding: '0 28px 40px',
+        animation: 'fadeIn .35s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0 24px' }}>
         <Logo size={84} glow />
         <div style={{ fontFamily: FONTS.heading, fontSize: 26, fontWeight: 700, color: C.p9, marginTop: 12 }}>

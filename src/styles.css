@@ -14,6 +14,28 @@ body {
   font-family: 'DM Sans', sans-serif;
 }
 
+/* When running inside a Capacitor iOS / Android shell the iPhone-mockup
+   centring is the wrong default — the WebView already gives us the device
+   viewport, and the dark-purple body background bleeds around the edges
+   of the React tree. The bootstrap in main.jsx adds `is-native` to <body>
+   on startup, which the rules below pick up to flip the layout into
+   "fill the viewport, no mockup chrome" mode. */
+body.is-native {
+  background: #E6DFED;          /* lila — matches the lila gradient inside */
+  display: block;
+  padding: 0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+body.is-native > #root {
+  width: 100vw;
+  min-height: 100dvh;
+}
+
+html, #root {
+  background: inherit;
+}
+
 ::-webkit-scrollbar {
   display: none;
 }
