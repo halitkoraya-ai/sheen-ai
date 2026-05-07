@@ -125,8 +125,9 @@ export const AgeModal = ({ onConfirm, onClose }) => (
       onClick={e => e.stopPropagation()}
       style={{
         background: C.bg, borderRadius: '22px 22px 0 0',
-        padding: '20px 24px 36px', width: 375,
-        position: 'fixed', bottom: 0,
+        padding: '20px 24px 36px',
+        width: 'min(375px, 100%)',
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         animation: 'slideUp .3s ease',
       }}
     >

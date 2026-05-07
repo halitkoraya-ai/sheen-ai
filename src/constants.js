@@ -16,6 +16,36 @@ export const FONTS = {
   body:    "'DM Sans', sans-serif",
 }
 
+// ── Native shell detection ──────────────────────────────────────────
+// True when running inside a Capacitor iOS / Android shell. Used to
+// flip layout primitives (fixed pixel heights designed for the 375x812
+// web mockup vs. dynamic viewport heights that fill any device screen).
+export const IS_NATIVE = (() => {
+  try {
+    if (typeof window === 'undefined') return false
+    const cap = window.Capacitor
+    if (!cap) return false
+    if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform()
+    return cap.platform === 'ios' || cap.platform === 'android'
+  } catch { return false }
+})()
+
+// Layout helpers — return the right unit depending on environment.
+//
+// On the desktop preview we keep the original 375x812 iPhone mockup so
+// the marketing/preview frame reads as a polished prototype. On native
+// we fall back to viewport units (`dvh` = dynamic viewport height,
+// shrinks/grows when iOS Safari toolbars appear/disappear) so the app
+// fills the device screen no matter what.
+//
+// `mockupHeight` is the width-mockup constant (e.g. 722, 700, 812).
+// `screenMinHeight(700)` → 700 on web, '100dvh' on native.
+// `screenHeight(722)` → 722 on web, '100dvh' on native.
+// `scrollMaxHeight(680)` → 680 on web, 'calc(100dvh - 100px)' on native.
+export const screenHeight    = (mockupHeight) => IS_NATIVE ? '100dvh'                      : mockupHeight
+export const screenMinHeight = (mockupHeight) => IS_NATIVE ? '100dvh'                      : mockupHeight
+export const scrollMaxHeight = (mockupHeight) => IS_NATIVE ? `calc(100dvh - 100px)`        : mockupHeight
+
 // ── Shared style factory functions ───────────────────────────────────
 export const gradientButton = (overrides = {}) => ({
   width: '100%',

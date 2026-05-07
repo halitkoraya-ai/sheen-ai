@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { C, FONTS, gradientButton, glassCard, glassInput, PLANS, limitsForTier, TOPUP_PACKAGES, topupPriceFor } from '../constants.js'
+import { C, FONTS, gradientButton, glassCard, glassInput, PLANS, limitsForTier, TOPUP_PACKAGES, topupPriceFor, screenHeight, screenMinHeight, scrollMaxHeight } from '../constants.js'
 import { Logo, Header, BottomNav, PlanCard, CheckIcon, Icon } from '../components/index.jsx'
 import {
   signInWithEmail, signInWithGoogle, signInWithApple, signUpWithEmail,
@@ -739,7 +739,7 @@ export const HomeScreen = ({
   const RING_C     = 2 * Math.PI * RING_R
 
   return (
-    <div style={{ position: 'relative', height: 722, overflow: 'hidden', animation: 'fadeIn .35s ease' }}>
+    <div style={{ position: 'relative', height: screenHeight(722), overflow: 'hidden', animation: 'fadeIn .35s ease' }}>
       {/* Mic / recording error banner — shown when start failed (e.g. denied permission). */}
       {!recording && recError && (
         <div style={{
@@ -1389,7 +1389,7 @@ export const SummaryScreen = ({
   }
 
   return (
-    <div style={{ position: 'relative', minHeight: 700, animation: 'fadeIn .35s ease' }}>
+    <div style={{ position: 'relative', minHeight: screenMinHeight(700), animation: 'fadeIn .35s ease' }}>
       {onBack ? (
         <Header title="Meeting Summary" onBack={onBack} />
       ) : (
@@ -1586,7 +1586,7 @@ export const SummaryScreen = ({
 export const SummaryEditScreen = ({ onBack }) => (
   <div style={{ animation: 'fadeIn .35s ease' }}>
     <Header title="Edit" onBack={onBack} />
-    <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+    <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
       {[
         { s: '[Overview]',   t: 'This Q3 2025 progress meeting addressed shifts in next-step strategy driven by market feedback.' },
         { s: '[Background]', t: 'With the rapid iteration of AI, EchoMind AI faces new challenges in processing efficiency and multimodal fusion.' },
@@ -1753,7 +1753,7 @@ export const MindMapScreen = ({ sessionId, onBack, selectedBranch, setSelectedBr
   const selected = branches.find(b => b.id === selectedBranch)
 
   return (
-    <div style={{ animation: 'fadeIn .35s ease', display: 'flex', flexDirection: 'column', height: 722 }}>
+    <div style={{ animation: 'fadeIn .35s ease', display: 'flex', flexDirection: 'column', height: screenHeight(722) }}>
       <Header title="Mind Map" onBack={onBack} right={
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path d="M12 15V3M12 15L8 11M12 15L16 11" stroke={C.p9} strokeWidth="2" strokeLinecap="round" />
@@ -2012,7 +2012,7 @@ export const RecordsScreen = ({ activeTab, onNavigate, onDetail }) => {
   const { sessions, loading, error } = useSessions()
 
   return (
-    <div style={{ position: 'relative', minHeight: 700, animation: 'fadeIn .35s ease' }}>
+    <div style={{ position: 'relative', minHeight: screenMinHeight(700), animation: 'fadeIn .35s ease' }}>
       <div style={{ padding: '4px 24px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontFamily: FONTS.heading, fontSize: 20, fontWeight: 700, color: C.p9 }}>Meeting Records</span>
         {sessions.length > 0 && (
@@ -2022,7 +2022,7 @@ export const RecordsScreen = ({ activeTab, onNavigate, onDetail }) => {
         )}
       </div>
 
-      <div style={{ padding: '0 24px', maxHeight: 600, overflowY: 'auto' }}>
+      <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(600), overflowY: 'auto' }}>
         {error && (
           <div style={{
             padding: '10px 12px', borderRadius: 10, marginBottom: 12,
@@ -2347,7 +2347,7 @@ export const RecordDetailScreen = ({ sessionId, onBack, onRename, onDelete, onAi
   return (
   <div style={{ animation: 'fadeIn .35s ease' }}>
     <Header title="Meeting Details" onBack={onBack} />
-    <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+    <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <span
           title={title}
@@ -2569,7 +2569,7 @@ export const AiChatScreen = ({ sessionId, onBack, onJumpToTime }) => {
   }
 
   return (
-    <div style={{ animation: 'fadeIn .35s ease', display: 'flex', flexDirection: 'column', height: 722 }}>
+    <div style={{ animation: 'fadeIn .35s ease', display: 'flex', flexDirection: 'column', height: screenHeight(722) }}>
       <Header title="AI Chat" onBack={onBack} right={
         queryLimit > 0 ? (
           <span style={{ fontSize: 11, color: isAtLimit ? '#E53935' : C.p7, fontFamily: FONTS.body, fontWeight: 600 }}>
@@ -2742,11 +2742,11 @@ export const ProfileScreen = ({ activeTab, onNavigate, onPersonalInfo, onLogout 
   ]
 
   return (
-    <div style={{ position: 'relative', minHeight: 700, animation: 'fadeIn .35s ease' }}>
+    <div style={{ position: 'relative', minHeight: screenMinHeight(700), animation: 'fadeIn .35s ease' }}>
       <div style={{ padding: '8px 24px 0' }}>
         <span style={{ fontFamily: FONTS.heading, fontSize: 20, fontWeight: 700, color: C.p9 }}>Profile</span>
       </div>
-      <div style={{ padding: '14px 24px', maxHeight: 640, overflowY: 'auto' }}>
+      <div style={{ padding: '14px 24px', maxHeight: scrollMaxHeight(640), overflowY: 'auto' }}>
         <div onClick={onPersonalInfo} style={{ ...glassCard({ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, cursor: 'pointer' }) }}>
           <div style={{
             width: 54, height: 54, borderRadius: '50%',
@@ -2933,7 +2933,7 @@ export const PersonalInfoScreen = ({ onBack, onLogout }) => {
   return (
     <div style={{ animation: 'fadeIn .35s ease' }}>
       <Header title="Personal Info" onBack={onBack} />
-      <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+      <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
           <div style={{
             width: 70, height: 70, borderRadius: '50%',
@@ -3263,7 +3263,7 @@ export const UsageScreen = ({ onBack, onUpgrade }) => {
           }}>{tierLabel(tier)}</span>
         }
       />
-      <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+      <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
         {/* Period header */}
         <div style={{
           fontFamily: FONTS.heading, fontSize: 13, fontWeight: 600, color: C.p9,
@@ -3427,7 +3427,7 @@ export const MemberInfo2Screen = ({ onBack, onUpgrade }) => {
   return (
     <div style={{ animation: 'fadeIn .35s ease' }}>
       <Header title="Membership" onBack={onBack} />
-      <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+      <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
           <div style={{ background: `linear-gradient(135deg, ${C.p5}, ${C.p7})`, borderRadius: 12, padding: '5px 18px', fontSize: 12, fontWeight: 600, color: 'white', fontFamily: FONTS.body }}>
             {badgeLabel}
@@ -3557,7 +3557,7 @@ export const LegalScreen = ({ type, onBack }) => {
   return (
     <div style={{ animation: 'fadeIn .35s ease' }}>
       <Header title={title} onBack={onBack} />
-      <div style={{ padding: '0 24px', maxHeight: 680, overflowY: 'auto' }}>
+      <div style={{ padding: '0 24px', maxHeight: scrollMaxHeight(680), overflowY: 'auto' }}>
         <div style={{ background: 'rgba(255,255,255,0.72)', borderRadius: 16, padding: '16px 18px', border: `1.5px solid ${C.p4}` }}>
           <div style={{ fontSize: 11, color: C.p6, fontFamily: FONTS.body, marginBottom: 14, lineHeight: 1.5 }}>
             Last updated: May 2026. Plain-English summary — full legal text is available on request.
