@@ -7,6 +7,14 @@ import { resolve } from 'node:path'
 // Post-build plugin: rewrites the inline module script as a plain script tag
 // so the single-file output works when opened directly via file:// in Chrome
 // (browsers refuse to execute `type="module"` from the file scheme).
+//
+// Only applied to the `standalone` build mode — Capacitor serves the web
+// app over https://localhost, where ES modules work natively, and stripping
+// the module attribute there breaks bundle execution (you get a
+// completely blank WebView). Hence we keep two build outputs:
+//   • default `vite build`      → normal dist/, used by Capacitor
+//   • `vite build --mode standalone` → single-file dist/index.html for
+//                                       sharing / file:// previews
 const dropModuleType = () => ({
   name: 'sheen-drop-module-type',
   apply: 'build',
@@ -25,19 +33,31 @@ const dropModuleType = () => ({
   },
 })
 
-export default defineConfig({
-  plugins: [
-    react(),
-    viteSingleFile({ removeViteModuleLoader: true }),
-    dropModuleType(),
-  ],
-  build: {
-    // ES2018 keeps the bundle compatible with module-less <script> execution.
-    target: 'es2018',
-    assetsInlineLimit: 100_000_000, // inline all assets (logo.png) as base64
-    cssCodeSplit: false,
-    rollupOptions: {
-      output: { inlineDynamicImports: true },
+export default defineConfig(({ mode }) => {
+  // `standalone` mode → single-file HTML artifact (file:// friendly).
+  // Default mode      → conventional dist/ that Capacitor consumes
+  //                      (index.html + chunked JS/CSS).
+  const standalone = mode === 'standalone'
+
+  return {
+    plugins: [
+      react(),
+      ...(standalone
+        ? [viteSingleFile({ removeViteModuleLoader: true }), dropModuleType()]
+        : []),
+    ],
+    build: {
+      // ES2018 keeps the bundle compatible with module-less <script> execution
+      // (used by the standalone single-file build).
+      target: 'es2018',
+      // Inline assets only when producing the standalone single-file output;
+      // a normal Capacitor build benefits from chunked assets being cached
+      // by the WebView between launches.
+      assetsInlineLimit: standalone ? 100_000_000 : 4096,
+      cssCodeSplit: !standalone,
+      rollupOptions: standalone
+        ? { output: { inlineDynamicImports: true } }
+        : {},
     },
-  },
+  }
 })
