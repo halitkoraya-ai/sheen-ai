@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Adaptive launcher icon background. Brand light lila so the icon
+         visually matches the in-app splash and home background
+         (C.bg in the React palette = #E6DFED). -->
+    <color name="ic_launcher_background">#E6DFED</color>
 </resources>
