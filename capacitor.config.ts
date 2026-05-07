@@ -62,12 +62,14 @@ const config: CapacitorConfig = {
       showSpinner:          false,
     },
     StatusBar: {
-      // Match the app background so the status bar blends in. The web
-      // CSS doesn't paint over the native status bar, so we set the
-      // native background here.
-      style:                'LIGHT',
-      backgroundColor:      '#E6DFED',
-      overlaysWebView:      false,
+      // Edge-to-edge layout: the WebView extends behind the system status
+      // bar so the lila gradient fills the entire screen. The status bar
+      // becomes transparent and the OS draws its own icons over our
+      // background. `style: DARK` paints those icons in dark colour so
+      // they're visible against our light lila bg.
+      style:                'DARK',
+      backgroundColor:      '#00000000',
+      overlaysWebView:      true,
     },
   },
 }

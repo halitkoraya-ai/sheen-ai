@@ -378,18 +378,17 @@ export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         style={{
+          // Edge-to-edge: no padding so the lila gradient fills the entire
+          // viewport including under the system status bar + home
+          // indicator. Capacitor's StatusBar plugin is configured with
+          // overlaysWebView:true so the OS draws its system icons over
+          // our background.
           width: '100vw',
           minHeight: '100dvh',
           background: `linear-gradient(180deg, ${C.bg} 0%, ${C.p4} 100%)`,
           fontFamily: FONTS.body,
           touchAction: 'pan-y',
           overflow: 'hidden',
-          // Honour iOS / Android system UI insets so notches and the home
-          // indicator don't overlap the React UI. `env(safe-area-inset-*)`
-          // resolves to 0 on devices without notches, so it's always safe
-          // to apply.
-          paddingTop:    'env(safe-area-inset-top)',
-          paddingBottom: 'env(safe-area-inset-bottom)',
           // Center the mobile-sized React tree on tablets / iPads.
           display: 'flex',
           justifyContent: 'center',
@@ -404,6 +403,11 @@ export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
             position: 'relative',
+            // Inset content so the system status bar (top) and home
+            // indicator (bottom) never overlap React UI, while the
+            // gradient bg above keeps painting edge-to-edge.
+            paddingTop:    'env(safe-area-inset-top)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
           }}
         >
           {children}
