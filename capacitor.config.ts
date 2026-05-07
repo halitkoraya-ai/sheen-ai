@@ -44,6 +44,32 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
   },
+
+  // Native plugin tuning. Defaults work for most apps; the values below
+  // make the splash + status bar match the lila gradient the React app
+  // already uses, so the user never sees a flash of black during launch.
+  plugins: {
+    SplashScreen: {
+      // Show splash for ~1.5 s while React boots; then fade out so the
+      // home screen render lands smoothly. Background color matches
+      // C.bg from constants.js so the lila stays continuous.
+      launchShowDuration:   1500,
+      launchAutoHide:       true,
+      launchFadeOutDuration: 200,
+      backgroundColor:      '#E6DFED',
+      androidSplashResourceName: 'splash',
+      androidScaleType:     'CENTER_CROP',
+      showSpinner:          false,
+    },
+    StatusBar: {
+      // Match the app background so the status bar blends in. The web
+      // CSS doesn't paint over the native status bar, so we set the
+      // native background here.
+      style:                'LIGHT',
+      backgroundColor:      '#E6DFED',
+      overlaysWebView:      false,
+    },
+  },
 }
 
 export default config
