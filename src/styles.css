@@ -1,0 +1,97 @@
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  background: #1a1020;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 32px 16px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+input, textarea, button {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(.3); }
+  50%      { transform: scaleY(1); }
+}
+
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 6px 18px rgba(74,32,112,.3)); }
+  50%      { filter: drop-shadow(0 8px 30px rgba(74,32,112,.55)) drop-shadow(0 0 18px rgba(189,162,218,.3)); }
+}
+
+/* Halo ripple — ring emerges at button size and travels outward, fading + shifting from dark to light as it grows */
+@keyframes haloRipple {
+  0%   { transform: scale(.5);  opacity: 0; border-color: #613A8A; }
+  12%  { opacity: 1;            border-color: #613A8A; }
+  60%  { border-color: #8163A3; }
+  100% { transform: scale(2.4); opacity: 0; border-color: #BDA2DA; }
+}
+
+/* Click wave — a single ring radiating outward from the button and fading away */
+@keyframes haloWave {
+  0%   { transform: scale(1);   opacity: .85; border-width: 3px; }
+  100% { transform: scale(2.6); opacity: 0;   border-width: .5px; }
+}
+
+/* Hold-to-stop progress ring — fills from 0 (top center) to full circle as the user holds */
+@keyframes holdProgress {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Button ambient breathing — gentle scale + glow */
+@keyframes btnBreathe {
+  0%, 100% {
+    box-shadow:
+      0 14px 44px rgba(74,32,112,.5),
+      inset 0 2px 6px rgba(255,255,255,.18),
+      0 0 0 0 rgba(189,162,218,0);
+  }
+  50% {
+    box-shadow:
+      0 18px 56px rgba(74,32,112,.65),
+      inset 0 2px 6px rgba(255,255,255,.22),
+      0 0 36px 4px rgba(189,162,218,.35);
+  }
+}
+
+/* Soft aura pulse behind button */
+@keyframes auraPulse {
+  0%, 100% { opacity: .45; transform: scale(1); }
+  50%      { opacity: .75; transform: scale(1.08); }
+}
+
+/* Ripple on tap */
+@keyframes ripple {
+  0%   { box-shadow: 0 0 0 0   rgba(129,99,163,.65); }
+  70%  { box-shadow: 0 0 0 32px rgba(129,99,163,0);  }
+  100% { box-shadow: 0 0 0 0   rgba(129,99,163,0);   }
+}

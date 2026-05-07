@@ -1,0 +1,24 @@
+{
+  "name": "sheen-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0",
+    "firebase-admin": "^13.0.0",
+    "@deepgram/sdk": "^3.9.0",
+    "@google-cloud/translate": "^8.5.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.7.0",
+    "ts-node": "^10.9.0"
+  }
+}
