@@ -332,6 +332,21 @@ export const PlanCard = ({ plan, onPress, subscribed = false }) => {
 }
 
 // ── Phone Frame wrapper ──────────────────────────────────────────────
+// Detect whether the app is running inside a Capacitor native shell
+// (iOS / Android) versus a regular browser. On native we render full-bleed
+// — no fake notch, no fake status bar, no rounded mockup — and let the OS
+// chrome handle the device frame. On the web we keep the iPhone mockup
+// look so the desktop preview reads as a polished prototype.
+const isCapacitorNative = (() => {
+  try {
+    if (typeof window === 'undefined') return false
+    const cap = window.Capacitor
+    if (!cap) return false
+    if (typeof cap.isNativePlatform === 'function') return cap.isNativePlatform()
+    return cap.platform === 'ios' || cap.platform === 'android'
+  } catch { return false }
+})()
+
 export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
   const swipeRef = useRef(null)
 
@@ -350,6 +365,34 @@ export const PhoneFrame = ({ children, scrollRef, onSwipe }) => {
   }
   const onPointerCancel = () => { swipeRef.current = null }
 
+  // ── Native shell: full-bleed, real OS status bar, no mockup chrome ──
+  if (isCapacitorNative) {
+    return (
+      <div
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        style={{
+          // Use 100dvh so iOS Safari's URL bar resize doesn't clip the
+          // bottom nav. dvh is supported in Capacitor's WebView (recent
+          // WebKit + Chromium).
+          width: '100vw',
+          minHeight: '100dvh',
+          background: `linear-gradient(180deg, ${C.bg} 0%, ${C.p4} 100%)`,
+          position: 'relative',
+          fontFamily: FONTS.body,
+          touchAction: 'pan-y',
+          overflow: 'hidden',
+        }}
+      >
+        <div ref={scrollRef} style={{ minHeight: '100dvh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          {children}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Web preview: keep the polished iPhone mockup ───────────────────
   return (
     <div
       onPointerDown={onPointerDown}
