@@ -36,6 +36,36 @@ html, #root {
   background: inherit;
 }
 
+/* On native shells fonts read ~2 pt smaller than they do in the desktop
+   mockup because the device DPI is higher than the iPhone-mockup canvas
+   was designed against. We don't want to touch every inline `fontSize`
+   throughout the React tree, so an attribute selector with !important
+   bumps the most common sizes. React serialises `fontSize: 12` as
+   `font-size:12px` in the DOM, so we match both with-space and
+   no-space variants for safety. */
+body.is-native [style*="font-size: 9px"],
+body.is-native [style*="font-size:9px"]   { font-size: 11px !important; }
+body.is-native [style*="font-size: 10px"],
+body.is-native [style*="font-size:10px"]  { font-size: 12px !important; }
+body.is-native [style*="font-size: 11px"],
+body.is-native [style*="font-size:11px"]  { font-size: 13px !important; }
+body.is-native [style*="font-size: 12px"],
+body.is-native [style*="font-size:12px"]  { font-size: 14px !important; }
+body.is-native [style*="font-size: 12.5px"],
+body.is-native [style*="font-size:12.5px"] { font-size: 14.5px !important; }
+body.is-native [style*="font-size: 13px"],
+body.is-native [style*="font-size:13px"]  { font-size: 15px !important; }
+body.is-native [style*="font-size: 14px"],
+body.is-native [style*="font-size:14px"]  { font-size: 16px !important; }
+body.is-native [style*="font-size: 15px"],
+body.is-native [style*="font-size:15px"]  { font-size: 17px !important; }
+body.is-native [style*="font-size: 16px"],
+body.is-native [style*="font-size:16px"]  { font-size: 18px !important; }
+body.is-native [style*="font-size: 17px"],
+body.is-native [style*="font-size:17px"]  { font-size: 19px !important; }
+body.is-native [style*="font-size: 18px"],
+body.is-native [style*="font-size:18px"]  { font-size: 20px !important; }
+
 ::-webkit-scrollbar {
   display: none;
 }
