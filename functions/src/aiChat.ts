@@ -226,24 +226,118 @@ export const aiChat = onCall(
 
     const ai = new GoogleGenAI({apiKey});
 
-    // I7-equivalent: 30 s wall-clock cap on the model call.
+    // ── Context cache (Flash only, transcripts ≥ ~4 KB) ──────────────
+    //
+    // Gemini context caching lets us upload the transcript + system
+    // prompt once per session and reference it by name in subsequent
+    // chat turns. Input tokens covered by the cache cost ~25% of the
+    // normal rate, so a 10-question chat over a 30-min meeting drops
+    // from ~$0.007 to ~$0.0025 in input cost.
+    //
+    // We:
+    //  • only cache for Flash — Pro escalations are rare and the
+    //    create-cache overhead would dwarf any savings on a single
+    //    deep-analysis question.
+    //  • require the transcript to be at least ~4 KB (well above the
+    //    Gemini caches API's minimum-token requirement of ~1,024).
+    //  • persist the cache name on the session doc so subsequent
+    //    Cloud Function invocations reuse it.
+    //  • validate the cache hasn't expired before using it; if it has
+    //    (default TTL ~1 hour), we re-create transparently.
+    //  • fall back to inline transcript if cache create/get fails for
+    //    any reason — caching is a pure optimisation, never required.
+    const CACHE_TTL_SECONDS = 3600;          // 1 hour, refreshed on hit
+    const CACHE_MIN_TRANSCRIPT_CHARS = 4096; // approx 1K tokens
+    const shouldCache =
+      modelKey === "flash" &&
+      transcript.length >= CACHE_MIN_TRANSCRIPT_CHARS;
+
+    let cacheName: string | null =
+      typeof sessionData.geminiCacheName === "string" ? sessionData.geminiCacheName : null;
+
+    // Verify any persisted cache is still alive on Gemini's side.
+    if (shouldCache && cacheName) {
+      try {
+        const existing = await ai.caches.get({name: cacheName});
+        const exp = existing.expireTime
+          ? new Date(existing.expireTime).getTime()
+          : 0;
+        if (exp <= Date.now()) {
+          cacheName = null;  // expired
+        } else {
+          // Extend TTL so an active chat session doesn't expire mid-flight.
+          try {
+            await ai.caches.update({
+              name: cacheName,
+              config: {ttl: `${CACHE_TTL_SECONDS}s`},
+            });
+          } catch (e) {
+            console.warn("[aiChat] cache TTL refresh failed:", (e as Error)?.message);
+          }
+        }
+      } catch (e) {
+        // 404 / NOT_FOUND etc. — cache is gone, treat as no cache.
+        cacheName = null;
+      }
+    } else if (!shouldCache) {
+      cacheName = null;
+    }
+
+    // Create a new cache if we want one and don't have one.
+    if (shouldCache && !cacheName) {
+      try {
+        const cache = await ai.caches.create({
+          model: modelId,
+          config: {
+            systemInstruction: systemPrompt,
+            ttl: `${CACHE_TTL_SECONDS}s`,
+            // The cached `contents` becomes the implicit conversation
+            // prefix. We park the transcript as a user-turn marker so
+            // every chat call simply appends the new user question.
+            contents: [
+              {role: "user", parts: [{text: "(Awaiting your question about the meeting.)"}]},
+            ],
+          },
+        });
+        cacheName = cache.name || null;
+        if (cacheName) {
+          // Persist on the session doc for the next invocation. Best-effort.
+          try {
+            await sessionRef.update({geminiCacheName: cacheName});
+          } catch (e) {
+            console.warn("[aiChat] persist cache name failed:", (e as Error)?.message);
+          }
+        }
+      } catch (e) {
+        console.warn("[aiChat] cache create failed, falling back to inline:", (e as Error)?.message);
+        cacheName = null;
+      }
+    }
+
+    // 30 s wall-clock cap on the model call.
     const controller = new AbortController();
     const timeout    = setTimeout(() => controller.abort(), 30_000);
 
     let assistantContent = "";
     try {
-      const response = await ai.models.generateContent({
-        model: modelId,
-        contents: [
-          {role: "user", parts: [{text: userMessage}]},
-        ],
-        config: {
-          systemInstruction: systemPrompt,
-          maxOutputTokens: 1024,
-          temperature: 0.4,
-          abortSignal: controller.signal,
-        },
-      });
+      // Two call shapes — cached vs inline — but identical user-message
+      // payload. The cache subsumes the system prompt + transcript.
+      const baseConfig = {
+        maxOutputTokens: 1024,
+        temperature: 0.4,
+        abortSignal: controller.signal as AbortSignal,
+      };
+      const response = cacheName
+        ? await ai.models.generateContent({
+          model: modelId,
+          contents: [{role: "user", parts: [{text: userMessage}]}],
+          config: {...baseConfig, cachedContent: cacheName},
+        })
+        : await ai.models.generateContent({
+          model: modelId,
+          contents: [{role: "user", parts: [{text: userMessage}]}],
+          config: {...baseConfig, systemInstruction: systemPrompt},
+        });
       assistantContent = (response.text || "").trim();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
