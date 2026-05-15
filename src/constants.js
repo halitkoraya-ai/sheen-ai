@@ -85,14 +85,22 @@ export const glassInput = (overrides = {}) => ({
 })
 
 // Subscription plans — pricing reflects the unit economics of Deepgram
-// (streaming transcription) plus Google Gemini (chat + summarization).
+// (streaming transcription) plus a smart-routed AI stack.
 //
 // Cost model (per MAU at average usage):
 //   Deepgram + Cloud Run : $0.008 / minute of audio (~$0.48 / hour)
-//   Gemini 2.5 Flash     : ~$0.0006 / query (default for AI chat)
-//   Gemini 2.5 Pro       : ~$0.011 / query (auto-escalation for hard
-//                          questions on Premium / Professional)
+//   Gemini 2.5 Flash     : ~$0.0006 / query  (default, ~80% of traffic)
+//   DeepSeek V3 (chat)   : ~$0.0019 / query  (medium reasoning, ~15%)
+//   DeepSeek R1 (reason) : ~$0.0038 / query  (deep analysis, ~5%)
+//   Gemini 2.5 Pro       : ~$0.011 / query   (multimodal / very-long
+//                          context fallback — not routed by default)
 //   Firestore + Functions: ~$0.05 / MAU (fixed, ignorable)
+//
+// Routing happens server-side in functions/src/aiChat.ts: a free
+// regex pre-filter handles obvious simple/complex cases; ambiguous
+// questions get a 1-shot Flash classification (~$0.00005 each) that
+// picks the right model. The `models` array below mirrors the
+// server-side TIER_MODELS table — keep them in sync when retiering.
 //
 // Hard caps below sit above expected average usage with healthy margin
 // while staying break-even at the worst case (full-cap power user).
@@ -159,7 +167,7 @@ export const PLANS = [
       recordingMinutesPerMonth: 1200,
       aiChatQueriesPerMonth:    200,
       deepSummariesPerMonth:    50,
-      models:                   ['flash', 'pro'],
+      models:                   ['flash', 'v3', 'r1'],
       autoRoute:                true,
       priority:                 false,
     },
@@ -182,7 +190,7 @@ export const PLANS = [
       recordingMinutesPerMonth: 4800,
       aiChatQueriesPerMonth:    800,
       deepSummariesPerMonth:    -1,    // -1 = unlimited
-      models:                   ['flash', 'pro'],
+      models:                   ['flash', 'v3', 'r1', 'pro'],
       autoRoute:                true,
       priority:                 true,
     },

@@ -2675,7 +2675,7 @@ export const AiChatScreen = ({ sessionId, onBack, onJumpToTime }) => {
           >{error} <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></div>
         )}
 
-        {lastModelUsed === 'pro' && !isLoading && (
+        {lastModelUsed && lastModelUsed !== 'flash' && !isLoading && (
           <div style={{
             margin: '4px 0 8px',
             fontSize: 10, color: C.p6, fontFamily: FONTS.body, textAlign: 'center', opacity: 0.7,
