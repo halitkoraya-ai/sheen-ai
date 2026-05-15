@@ -6,7 +6,14 @@
 // Analytics' measurementId is intentionally omitted — we don't use
 // Firebase Analytics, and including it pulls in extra bundle weight.
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth'
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  inMemoryPersistence,
+  GoogleAuthProvider,
+  OAuthProvider,
+} from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getFunctions } from 'firebase/functions'
 import { getStorage } from 'firebase/storage'
@@ -20,8 +27,29 @@ const firebaseConfig = {
   appId:             '1:176127438166:web:8a8580cee98579843afaf7',
 }
 
-export const app       = initializeApp(firebaseConfig)
-export const auth      = getAuth(app)
+export const app = initializeApp(firebaseConfig)
+
+// Auth — explicit persistence fallback chain instead of getAuth().
+//
+// On iOS Capacitor (WKWebView under capacitor://localhost) the default
+// Firebase auth-state init reliably hangs because the SDK tries
+// IndexedDB → falls into a Capacitor scheme edge case → never finishes
+// initialising → onAuthStateChanged never fires → React SplashScreen
+// gets stuck on "Loading…".
+//
+// Passing the persistence chain explicitly forces the SDK through a
+// well-defined order: prefer IndexedDB, fall back to localStorage,
+// finally in-memory (which always works but loses sign-in across app
+// restarts). This pattern is recommended in Firebase docs for
+// non-browser environments.
+export const auth = initializeAuth(app, {
+  persistence: [
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    inMemoryPersistence,
+  ],
+})
+
 export const firestore = getFirestore(app)
 export const storage   = getStorage(app)
 // The Sheen Cloud Functions are deployed to us-central1 (default region).

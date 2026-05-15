@@ -13,15 +13,23 @@ const config: CapacitorConfig = {
   appId:   'com.sheenai.app',
   appName: 'Sheen AI',
   webDir:  'dist',
-
-  // Capacitor v6+ defaults to copying everything into the platform on
-  // every sync; the explicit `bundledWebRuntime: false` of older guides
-  // is no longer needed.
+  // The WebView's underlying view-controller background. iOS shows this
+  // colour for the brief moment before the WebView paints; without it
+  // the user briefly sees the OS's default black behind any safe-area
+  // gap. Setting it to brand lila keeps the launch perfectly seamless.
+  backgroundColor: '#E6DFED',
 
   ios: {
-    // The system splash + launch screen are delegated to native config;
-    // Capacitor's WebView simply hosts the bundled HTML.
-    contentInset: 'always',
+    // `never` lets the WebView extend behind the status bar + home
+    // indicator. The React tree adds env(safe-area-inset-*) padding
+    // inside PhoneFrame so content doesn't slide under the system UI.
+    // Previously this was `always` which created the black bands the
+    // user reported on TestFlight (the OS painted the safe-area regions
+    // in the WebView's default black before our React bg loaded).
+    contentInset: 'never',
+    // WebView's own background colour, also lila so any flash between
+    // splash and React render is on-brand.
+    backgroundColor: '#E6DFED',
     // Microphone access is needed for the recording flow. The actual
     // permission prompt copy lives in ios/App/App/Info.plist
     // (NSMicrophoneUsageDescription). Capacitor doesn't auto-set this —
