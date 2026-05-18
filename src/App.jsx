@@ -355,8 +355,11 @@ export default function App() {
   // out and back in, then retry.
   const handleCancelConfirm = async () => {
     setModal(null)
-    setRecording(false)
-    setTimer(0)
+    // If a recording is in flight, tear it down silently before nuking the
+    // account so we don't leave an orphan WebSocket / capture pipeline alive
+    // after auth is gone. `reset()` skips the finalize-to-Firestore step
+    // (the account is about to disappear anyway).
+    try { if (recording.isActive) await recording.reset() } catch (_) {}
     setSummaryReady(false)
     try {
       await fbDeleteAccount()
@@ -389,8 +392,11 @@ export default function App() {
         <StopModal
           onConfirm={() => {
             setModal(null)
-            setRecording(false)
-            setTimer(0)
+            // Finalize through the recording context — flushes the buffer,
+            // closes the WebSocket, and writes the session doc to Firestore
+            // so it shows up in Records. Failure is logged but we still
+            // navigate so the user isn't stranded on a modal.
+            recording.stop().catch(e => console.error('[App] stop recording failed', e))
             go('records', true)
           }}
           onClose={() => setModal(null)}

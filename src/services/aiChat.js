@@ -1,14 +1,15 @@
 // Wrapper around the deployed `aiChat` Cloud Function (Firebase httpsCallable).
 //
 // The function takes a session id + user message, attaches the session's
-// transcript as context, calls Anthropic, persists both turns to
+// transcript as context, calls DeepSeek, persists both turns to
 // `sessions/{sid}/chatMessages`, and returns the assistant reply along with
 // the user's running quota counters.
 //
 // Tier routing — the client passes the tier-allowed model list and the
-// `autoRoute` flag; the function picks Haiku by default and escalates to
-// Sonnet when the question is judged to need deeper analysis (Premium /
-// Professional only). Free-tier users never reach this entry point.
+// `autoRoute` flag; the function defaults to DeepSeek V3 (chat) and only
+// escalates to R1 (reasoner) when a regex heuristic flags the prompt as
+// genuinely complex AND the tier allows R1 (Premium / Professional with
+// autoRoute on). Free-tier users never reach this entry point.
 import { httpsCallable } from 'firebase/functions'
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { firestore, functions } from './firebase.js'
@@ -35,7 +36,7 @@ export const subscribeChatMessages = (sessionId, onChange, onError) => {
 }
 
 // Send a chat message. `options` carries the tier's routing config.
-//   { models: ['haiku'] | ['haiku','sonnet'], autoRoute: bool, priority: bool }
+//   { models: ['v3'] | ['v3','r1'], autoRoute: bool, priority: bool }
 // Returns { queriesUsed, queryLimit, modelUsed }.
 export const sendAiMessage = async ({ sessionId, message, options = {} }) => {
   if (!sessionId) throw new Error('sendAiMessage: sessionId required')
@@ -47,7 +48,7 @@ export const sendAiMessage = async ({ sessionId, message, options = {} }) => {
     // The Cloud Function reads these and decides routing. Older deployments
     // ignore unknown fields, so we can ship this client ahead of the server
     // change without breaking anything.
-    models:    options.models    || ['haiku'],
+    models:    options.models    || ['v3'],
     autoRoute: options.autoRoute || false,
     priority:  options.priority  || false,
   })
@@ -55,7 +56,7 @@ export const sendAiMessage = async ({ sessionId, message, options = {} }) => {
   return {
     queriesUsed: Number(data.queriesUsed || 0),
     queryLimit:  Number(data.queryLimit  || -1),
-    modelUsed:   String(data.modelUsed   || 'haiku'),
+    modelUsed:   String(data.modelUsed   || 'v3'),
   }
 }
 

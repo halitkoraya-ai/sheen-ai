@@ -16,7 +16,6 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@google/genai": "^1.0.0",
     "@google-cloud/functions-framework": "^5.0.2",
     "@google-cloud/translate": "^8.5.0",
     "docx": "^9.1.0",

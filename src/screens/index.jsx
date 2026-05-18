@@ -1951,54 +1951,94 @@ export const MindMapScreen = ({ sessionId, onBack, selectedBranch, setSelectedBr
 }
 
 // ── PAYMENT ──────────────────────────────────────────────────────────
-export const PaymentScreen = ({ onBack }) => (
-  <div style={{ animation: 'fadeIn .35s ease' }}>
-    <Header title="" onBack={onBack} />
-    <div style={{ padding: '0 28px' }}>
-      <div style={{ textAlign: 'center', marginBottom: 22 }}>
-        <div style={{ fontSize: 13, color: C.p6, fontFamily: FONTS.body, marginBottom: 2 }}>Amount Due</div>
-        <div style={{ fontFamily: FONTS.heading, fontSize: 40, fontWeight: 700, color: C.p9 }}>$5,560</div>
-      </div>
-      <div style={{ ...glassCard({ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }) }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${C.p5}, ${C.p7})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="6" width="18" height="13" rx="2" stroke="white" strokeWidth="1.8" />
-            <path d="M3 10h18" stroke="white" strokeWidth="1.8" />
-          </svg>
+// STUB SCREEN — the actual payment integration (Stripe / RevenueCat /
+// StoreKit / Play Billing) is not wired yet. This screen currently
+// renders the visual mockup, lets the user pick a method, and shows a
+// "coming soon" notice on Pay so they aren't silently bounced back to
+// the previous screen. Replace the onClick body with the real checkout
+// invocation once a payment provider is integrated.
+export const PaymentScreen = ({ onBack }) => {
+  const [methodIdx, setMethodIdx] = useState(0)   // 0 = Apple Pay, 1 = Credit Card
+  const [notice, setNotice] = useState('')
+  const methods = [
+    { n: 'Apple Pay',  s: 'Face ID, credit/debit cards' },
+    { n: 'Credit Card', s: 'One-tap purchase, secure checkout' },
+  ]
+  const handlePay = () => {
+    // TODO(payments): swap for real checkout. For now signpost the stub
+    // status so testers don't think Pay silently went through.
+    setNotice('Payments are coming soon — your card has not been charged.')
+    setTimeout(() => setNotice(''), 4000)
+  }
+  return (
+    <div style={{ animation: 'fadeIn .35s ease' }}>
+      <Header title="" onBack={onBack} />
+      <div style={{ padding: '0 28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: 22 }}>
+          <div style={{ fontSize: 13, color: C.p6, fontFamily: FONTS.body, marginBottom: 2 }}>Amount Due</div>
+          <div style={{ fontFamily: FONTS.heading, fontSize: 40, fontWeight: 700, color: C.p9 }}>$5,560</div>
         </div>
-        <div style={{ fontFamily: FONTS.body }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.p9 }}>Q4 Product Strategy Sync</div>
-          <div style={{ fontSize: 11, color: C.p6 }}>October 24, 2023 · 45:12</div>
+        <div style={{ ...glassCard({ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }) }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${C.p5}, ${C.p7})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="6" width="18" height="13" rx="2" stroke="white" strokeWidth="1.8" />
+              <path d="M3 10h18" stroke="white" strokeWidth="1.8" />
+            </svg>
+          </div>
+          <div style={{ fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: C.p9 }}>Q4 Product Strategy Sync</div>
+            <div style={{ fontSize: 11, color: C.p6 }}>October 24, 2023 · 45:12</div>
+          </div>
         </div>
-      </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: C.p9, fontFamily: FONTS.body, marginBottom: 10 }}>Payment Method</div>
-      {[{ n: 'Apple Pay', s: 'Face ID, credit/debit cards', sel: true }, { n: 'Credit Card', s: 'One-tap purchase, secure checkout', sel: false }].map((m, i) => (
-        <div key={i} style={{ ...glassCard({ display: 'flex', alignItems: 'center', gap: 12, border: `1.5px solid ${m.sel ? C.p7 : C.p4}`, cursor: 'pointer' }) }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: i === 0 ? '#000' : `linear-gradient(135deg, ${C.p5}, ${C.p7})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {i === 0
-              ? <svg width="18" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.35.77 3.18.8 1.22-.23 2.38-.94 3.68-.84 1.57.13 2.75.76 3.5 1.9-3.22 1.88-2.75 6.05.47 7.4-.68 1.6-1.33 3.04-2.83 3.62zM12.03 7.36c-.14-2.4 1.93-4.37 4.22-4.57.35 2.71-2.47 4.76-4.22 4.57z" /></svg>
-              : <svg width="18" height="14" viewBox="0 0 24 18" fill="none"><rect x="1" y="1" width="22" height="16" rx="3" stroke="white" strokeWidth="1.8" /><path d="M1 6h22" stroke="white" strokeWidth="1.8" /></svg>
-            }
-          </div>
-          <div style={{ flex: 1, fontFamily: FONTS.body }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.p9 }}>{m.n}</div>
-            <div style={{ fontSize: 11, color: C.p6 }}>{m.s}</div>
-          </div>
-          {m.sel && (
-            <div style={{ width: 20, height: 20, borderRadius: '50%', background: C.p7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.p9, fontFamily: FONTS.body, marginBottom: 10 }}>Payment Method</div>
+        {methods.map((m, i) => {
+          const sel = i === methodIdx
+          return (
+            <div
+              key={i}
+              onClick={() => setMethodIdx(i)}
+              style={{ ...glassCard({ display: 'flex', alignItems: 'center', gap: 12, border: `1.5px solid ${sel ? C.p7 : C.p4}`, cursor: 'pointer' }) }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: i === 0 ? '#000' : `linear-gradient(135deg, ${C.p5}, ${C.p7})`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {i === 0
+                  ? <svg width="18" height="22" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.39.07 2.35.77 3.18.8 1.22-.23 2.38-.94 3.68-.84 1.57.13 2.75.76 3.5 1.9-3.22 1.88-2.75 6.05.47 7.4-.68 1.6-1.33 3.04-2.83 3.62zM12.03 7.36c-.14-2.4 1.93-4.37 4.22-4.57.35 2.71-2.47 4.76-4.22 4.57z" /></svg>
+                  : <svg width="18" height="14" viewBox="0 0 24 18" fill="none"><rect x="1" y="1" width="22" height="16" rx="3" stroke="white" strokeWidth="1.8" /><path d="M1 6h22" stroke="white" strokeWidth="1.8" /></svg>
+                }
+              </div>
+              <div style={{ flex: 1, fontFamily: FONTS.body }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.p9 }}>{m.n}</div>
+                <div style={{ fontSize: 11, color: C.p6 }}>{m.s}</div>
+              </div>
+              {sel && (
+                <div style={{ width: 20, height: 20, borderRadius: '50%', background: C.p7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                </div>
+              )}
             </div>
-          )}
+          )
+        })}
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: `1px solid ${C.p4}`, margin: '6px 0 16px' }}>
+          <span style={{ fontSize: 14, color: C.p6, fontFamily: FONTS.body }}>Total</span>
+          <span style={{ fontFamily: FONTS.heading, fontSize: 22, fontWeight: 700, color: C.p9 }}>$5,560</span>
         </div>
-      ))}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: `1px solid ${C.p4}`, margin: '6px 0 16px' }}>
-        <span style={{ fontSize: 14, color: C.p6, fontFamily: FONTS.body }}>Total</span>
-        <span style={{ fontFamily: FONTS.heading, fontSize: 22, fontWeight: 700, color: C.p9 }}>$5,560</span>
+        {notice && (
+          <div style={{
+            marginBottom: 12,
+            padding: '10px 14px',
+            borderRadius: 12,
+            background: 'rgba(255,255,255,.75)',
+            border: `1.5px dashed ${C.p7}`,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            color: C.p9,
+            textAlign: 'center',
+          }}>{notice}</div>
+        )}
+        <button onClick={handlePay} style={gradientButton()}>Pay</button>
       </div>
-      <button onClick={onBack} style={gradientButton()}>Pay</button>
     </div>
-  </div>
-)
+  )
+}
 
 // ── MEETING RECORDS ──────────────────────────────────────────────────
 // Live-streams /sessions filtered by the current user (mirrors
@@ -2519,10 +2559,11 @@ const renderAssistantContent = (text, onPickTime) => {
 
 // ── AI CHAT ──────────────────────────────────────────────────────────
 // Sits behind a tier-gate (Free has no AI chat at all). For Advance the
-// hook is called with `models: ['haiku']`; Premium / Professional pass
+// hook is called with `models: ['v3']`; Premium / Professional pass
 // both models + autoRoute=true so the Cloud Function can promote complex
-// questions to Sonnet. The screen also blocks input when the session
-// has no transcript (the AI would have nothing to ground its answer on).
+// questions to R1 (DeepSeek reasoner). The screen also blocks input when
+// the session has no transcript (the AI would have nothing to ground its
+// answer on).
 export const AiChatScreen = ({ sessionId, onBack, onJumpToTime }) => {
   const { profile } = useAuth()
   const tier        = profile?.tier || 'free'
@@ -2675,7 +2716,7 @@ export const AiChatScreen = ({ sessionId, onBack, onJumpToTime }) => {
           >{error} <span style={{ opacity: 0.7 }}>(tap to dismiss)</span></div>
         )}
 
-        {lastModelUsed && lastModelUsed !== 'flash' && !isLoading && (
+        {lastModelUsed === 'r1' && !isLoading && (
           <div style={{
             margin: '4px 0 8px',
             fontSize: 10, color: C.p6, fontFamily: FONTS.body, textAlign: 'center', opacity: 0.7,

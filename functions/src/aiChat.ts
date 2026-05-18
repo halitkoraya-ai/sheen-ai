@@ -1,7 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
 import * as admin from "firebase-admin";
-import {GoogleGenAI} from "@google/genai";
 
 // Initialize admin if not already done.
 if (!admin.apps.length) {
@@ -14,10 +13,14 @@ const db = admin.firestore();
  * Secret references. Each value lives in Google Secret Manager (never
  * in the repo) and is mounted into this function's runtime as an env
  * var with the same name. Set with:
- *   firebase functions:secrets:set GEMINI_API_KEY
  *   firebase functions:secrets:set DP_API_KEY        (DeepSeek)
+ *
+ * NOTE (May 2026 migration): The previous build also referenced
+ * GEMINI_API_KEY for Flash/Pro routing + context caching. After moving
+ * to a DeepSeek-only AI stack that secret can be deleted from Secret
+ * Manager (`firebase functions:secrets:destroy GEMINI_API_KEY`) — no
+ * runtime code reads it any more.
  */
-const geminiKey   = defineSecret("GEMINI_API_KEY");
 const deepseekKey = defineSecret("DP_API_KEY");
 
 /**
@@ -42,42 +45,54 @@ const TIER_LIMITS: Record<string, number> = {
 /**
  * Models available to each tier. Order matters: first = default.
  *
- * Routing strategy (May 2026):
- *  • `flash`  Gemini 2.5 Flash       — cheapest, default for everyone
- *  • `v3`     DeepSeek V3 (chat)     — mid-tier reasoning, ~13x cheaper
- *                                       than Gemini Pro for similar quality
- *  • `r1`     DeepSeek R1 (reasoner) — chain-of-thought, deep analysis,
- *                                       still cheaper than Gemini Pro
- *  • `pro`    Gemini 2.5 Pro         — multimodal / very-long-context
- *                                       fallback, not routed by default
+ * DeepSeek-only stack (May 2026):
+ *  • `v3`  DeepSeek V3 (deepseek-chat)    — default for everyone with
+ *          AI access. Cheap, fast, broad world knowledge. Handles ~95%
+ *          of meeting-Q&A traffic comfortably.
+ *  • `r1`  DeepSeek R1 (deepseek-reasoner) — chain-of-thought, deep
+ *          analysis. Routed in only when the heuristic detects an
+ *          explicitly complex prompt (or autoRoute + long input). Costs
+ *          ~2x V3 but still 3-5x cheaper than Gemini Pro for the same
+ *          quality on reasoning-heavy tasks.
+ *
+ * The previous mix also exposed `flash` (Gemini 2.5 Flash) as the
+ * default and `pro` (Gemini 2.5 Pro) as a multimodal fallback. Both
+ * were removed to consolidate on a single provider, simplify ops, and
+ * eliminate Google Cloud Vertex/AI-Studio billing line items.
  */
-type ModelKey = "flash" | "v3" | "r1" | "pro";
+type ModelKey = "v3" | "r1";
 
 const TIER_MODELS: Record<string, ModelKey[]> = {
   free:         [],
-  advance:      ["flash"],
-  premium:      ["flash", "v3", "r1"],
-  professional: ["flash", "v3", "r1", "pro"],
+  advance:      ["v3"],
+  premium:      ["v3", "r1"],
+  professional: ["v3", "r1"],
   // legacy aliases
   basic:        [],
-  pro:          ["flash", "v3", "r1", "pro"],
-  unlimited:    ["flash", "v3", "r1", "pro"],
+  pro:          ["v3", "r1"],
+  unlimited:    ["v3", "r1"],
 };
 
 const MODEL_IDS: Record<ModelKey, string> = {
-  flash: "gemini-2.5-flash",
-  pro:   "gemini-2.5-pro",
-  v3:    "deepseek-chat",
-  r1:    "deepseek-reasoner",
+  v3: "deepseek-chat",
+  r1: "deepseek-reasoner",
 };
 
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 
-// ─── Stage 1: cheap heuristic ────────────────────────────────────────
+// ─── Routing: cheap heuristic only ──────────────────────────────────
 //
-// Most chat turns are short, single-clause questions — no point spending
-// $0.0001 on a Flash classification when a regex match is 99% reliable.
-// We classify only when the heuristic genuinely can't decide.
+// Previously we ran a 2-stage router (regex pre-filter + Flash 1-shot
+// classifier for ambiguous cases). With a DeepSeek-only stack the
+// classifier would itself cost a V3 call — wiping out any saving from
+// routing to V3 instead of R1. So we drop the LLM classifier and rely
+// purely on the free regex heuristic:
+//   • simple   → V3   (cheap, fast)
+//   • complex  → R1   (only if tier allows)
+//   • ambiguous → V3  (default to cheap)
+//
+// R1 also automatically takes very long prompts (> 240 chars) since
+// those almost always involve summarisation / multi-segment analysis.
 const SIMPLE_PATTERNS = [
   // short factual look-ups ("when did X happen", "who said Y")
   /^(when|where|who|what|did|is|was|how long)\b/i,
@@ -101,71 +116,35 @@ function preFilter(message: string): HeuristicVerdict {
   return "ambiguous";
 }
 
-// ─── Stage 2: Flash-as-router ───────────────────────────────────────
-//
-// For ambiguous questions we send a 1-shot classification prompt to
-// Flash with no transcript context (~80 input tokens, ~5 output).
-// Output is a single word: simple | medium | deep. Cost is roughly
-// $0.00005 — well below the saving we get from not over-escalating.
-async function classifyComplexity(
-  ai: GoogleGenAI,
-  message: string,
-): Promise<"simple" | "medium" | "deep"> {
-  const prompt =
-    "Classify the following meeting-Q&A question by complexity. " +
-    "Reply with EXACTLY one word: simple, medium, or deep.\n" +
-    "• simple  = factual look-up, single short clause, one timestamp.\n" +
-    "• medium  = multi-part question, summarisation across several segments,\n" +
-    "            comparing two named items.\n" +
-    "• deep    = inference, motivation, implications, contradictions,\n" +
-    "            cross-cutting analysis.\n\n" +
-    "Question: " + message;
-  try {
-    const res = await ai.models.generateContent({
-      model: MODEL_IDS.flash,
-      contents: [{role: "user", parts: [{text: prompt}]}],
-      config: {maxOutputTokens: 8, temperature: 0},
-    });
-    const raw = (res.text || "").trim().toLowerCase();
-    if (raw.includes("deep"))   return "deep";
-    if (raw.includes("medium")) return "medium";
-    return "simple";
-  } catch (e) {
-    // If the router itself fails, default to "simple" so we never block
-    // the user on the cheap path.
-    console.warn("[aiChat] router classification failed:", (e as Error)?.message);
-    return "simple";
-  }
-}
-
-// ─── Stage 3: pick a model based on the verdict + tier access ────────
+// Pick a model based on the verdict + tier access.
 function pickModel(
-  verdict: HeuristicVerdict | "simple" | "medium" | "deep",
+  verdict: HeuristicVerdict,
   available: ModelKey[],
+  autoRoute: boolean,
 ): ModelKey {
   // Free / locked tiers shouldn't reach this function; defensive default.
-  if (available.length === 0) return "flash";
+  if (available.length === 0) return "v3";
   const has = (m: ModelKey) => available.includes(m);
 
   switch (verdict) {
-  case "deep":
-    if (has("r1"))    return "r1";
-    if (has("pro"))   return "pro";
-    return "flash";
-  case "medium":
   case "complex":
-    if (has("v3"))    return "v3";
-    if (has("r1"))    return "r1";
-    if (has("pro"))   return "pro";
-    return "flash";
+    // Only escalate to R1 if the user's tier allows AND auto-route is on.
+    // Advance tier has v3 only — they get v3 even on complex prompts.
+    if (autoRoute && has("r1")) return "r1";
+    return "v3";
   case "simple":
   case "ambiguous":
   default:
-    return "flash";
+    return "v3";
   }
 }
 
 // ─── DeepSeek HTTP call (OpenAI-compatible /chat/completions) ────────
+//
+// DeepSeek auto-caches the system prompt server-side for repeat calls
+// from the same account on the same model, so we don't need an explicit
+// cache layer like we did for Gemini. Hits drop the input-token bill
+// to ~10% of cold pricing automatically.
 async function callDeepSeek(
   modelId: string,
   apiKey: string,
@@ -205,14 +184,16 @@ async function callDeepSeek(
  * Callable Cloud Function: aiChat
  *
  * Receives a user message + sessionId + tier-driven options, loads the
- * full transcript, calls Gemini, persists both turns to chatMessages,
- * and returns the assistant reply along with the running quota.
+ * full transcript, calls DeepSeek (V3 by default, R1 for routed-deep
+ * questions on Premium/Professional), persists both turns to
+ * chatMessages, and returns the assistant reply along with the running
+ * quota.
  */
 export const aiChat = onCall(
   {
     enforceAppCheck: false,
     maxInstances: 20,
-    secrets: [geminiKey, deepseekKey],
+    secrets: [deepseekKey],
   },
   async (request) => {
     // 1. Authenticate
@@ -335,11 +316,10 @@ export const aiChat = onCall(
       transcript = start + "\n\n[... transcript truncated ...]\n\n" + end;
     }
 
-    // 5. Pick model via two-stage router.
-    const geminiApiKey   = process.env.GEMINI_API_KEY;
+    // 5. Pick model via heuristic-only router.
     const deepseekApiKey = process.env.DP_API_KEY;
-    if (!geminiApiKey) {
-      throw new HttpsError("internal", "Gemini API key is not configured.");
+    if (!deepseekApiKey) {
+      throw new HttpsError("internal", "DeepSeek API key is not configured.");
     }
 
     const systemPrompt =
@@ -351,93 +331,9 @@ export const aiChat = onCall(
       "TRANSCRIPT:\n" +
       transcript;
 
-    const ai = new GoogleGenAI({apiKey: geminiApiKey});
-
-    // Stage 1: heuristic pre-filter (free).
-    //
-    // Only invoke the Flash router when the heuristic genuinely can't
-    // decide. This keeps the common simple-Q case at exactly one LLM
-    // call (Flash, full transcript) instead of two.
-    let verdict: HeuristicVerdict | "simple" | "medium" | "deep" = preFilter(userMessage);
-
-    // Stage 2: Flash classification for ambiguous + autoRoute tiers.
-    if (verdict === "ambiguous" && autoRoute && (tierModels.includes("v3") || tierModels.includes("r1") || tierModels.includes("pro"))) {
-      verdict = await classifyComplexity(ai, userMessage);
-    } else if (verdict === "ambiguous") {
-      // No autoRoute or no escalation models → just answer with Flash.
-      verdict = "simple";
-    }
-
-    const modelKey = pickModel(verdict, tierModels);
+    const verdict  = preFilter(userMessage);
+    const modelKey = pickModel(verdict, tierModels, autoRoute);
     const modelId  = MODEL_IDS[modelKey];
-
-    // ── Gemini context cache (Flash answers only) ────────────────────
-    //
-    // Caching helps when the user asks several questions in a row about
-    // the same meeting: the transcript context is cached on Gemini's side
-    // and subsequent input tokens are billed at ~25% of the normal rate.
-    // We only cache for the Flash answer path — escalations to V3/R1/Pro
-    // are rare and the create-cache overhead doesn't pay off on a single
-    // deep-analysis call.
-    const CACHE_TTL_SECONDS = 3600;          // 1 hour, refreshed on hit
-    const CACHE_MIN_TRANSCRIPT_CHARS = 4096; // approx 1K tokens
-    const shouldCache =
-      modelKey === "flash" &&
-      transcript.length >= CACHE_MIN_TRANSCRIPT_CHARS;
-
-    let cacheName: string | null =
-      typeof sessionData.geminiCacheName === "string" ? sessionData.geminiCacheName : null;
-
-    if (shouldCache && cacheName) {
-      try {
-        const existing = await ai.caches.get({name: cacheName});
-        const exp = existing.expireTime
-          ? new Date(existing.expireTime).getTime()
-          : 0;
-        if (exp <= Date.now()) {
-          cacheName = null;
-        } else {
-          try {
-            await ai.caches.update({
-              name: cacheName,
-              config: {ttl: `${CACHE_TTL_SECONDS}s`},
-            });
-          } catch (e) {
-            console.warn("[aiChat] cache TTL refresh failed:", (e as Error)?.message);
-          }
-        }
-      } catch {
-        cacheName = null;
-      }
-    } else if (!shouldCache) {
-      cacheName = null;
-    }
-
-    if (shouldCache && !cacheName) {
-      try {
-        const cache = await ai.caches.create({
-          model: modelId,
-          config: {
-            systemInstruction: systemPrompt,
-            ttl: `${CACHE_TTL_SECONDS}s`,
-            contents: [
-              {role: "user", parts: [{text: "(Awaiting your question about the meeting.)"}]},
-            ],
-          },
-        });
-        cacheName = cache.name || null;
-        if (cacheName) {
-          try {
-            await sessionRef.update({geminiCacheName: cacheName});
-          } catch (e) {
-            console.warn("[aiChat] persist cache name failed:", (e as Error)?.message);
-          }
-        }
-      } catch (e) {
-        console.warn("[aiChat] cache create failed, falling back to inline:", (e as Error)?.message);
-        cacheName = null;
-      }
-    }
 
     // 30 s wall-clock cap on the model call.
     const controller = new AbortController();
@@ -445,39 +341,13 @@ export const aiChat = onCall(
 
     let assistantContent = "";
     try {
-      if (modelKey === "v3" || modelKey === "r1") {
-        // DeepSeek path — OpenAI-compatible /chat/completions.
-        if (!deepseekApiKey) {
-          throw new Error("DeepSeek API key not configured.");
-        }
-        assistantContent = await callDeepSeek(
-          modelId,
-          deepseekApiKey,
-          systemPrompt,
-          userMessage,
-          controller.signal,
-        );
-      } else {
-        // Gemini path (Flash or Pro). Cache shape vs inline shape — the
-        // cache subsumes systemInstruction + transcript.
-        const baseConfig = {
-          maxOutputTokens: 1024,
-          temperature: 0.4,
-          abortSignal: controller.signal as AbortSignal,
-        };
-        const response = cacheName
-          ? await ai.models.generateContent({
-            model: modelId,
-            contents: [{role: "user", parts: [{text: userMessage}]}],
-            config: {...baseConfig, cachedContent: cacheName},
-          })
-          : await ai.models.generateContent({
-            model: modelId,
-            contents: [{role: "user", parts: [{text: userMessage}]}],
-            config: {...baseConfig, systemInstruction: systemPrompt},
-          });
-        assistantContent = (response.text || "").trim();
-      }
+      assistantContent = await callDeepSeek(
+        modelId,
+        deepseekApiKey,
+        systemPrompt,
+        userMessage,
+        controller.signal,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       throw new HttpsError("unavailable", `Model call failed (${modelKey}): ${msg}`);

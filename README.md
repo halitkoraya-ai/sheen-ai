@@ -8,7 +8,7 @@ Capacitor. One codebase, three targets (web, iOS, Android).
 
 - **Frontend**: React 18, Vite 5, single-file build
 - **Auth + Database**: Firebase Auth, Firestore (project: `sheen-alpha`)
-- **AI chat / summary**: Cloud Functions v2 + Gemini 2.5 Flash/Pro
+- **AI chat / summary**: Cloud Functions v2 + DeepSeek (V3 default, R1 auto-routed for deep analysis on Premium / Professional)
 - **Speech-to-text + translation**: Deepgram Nova-3 → Cloud Run streaming server
 - **On-device audio**: IndexedDB (no cloud Storage cost)
 - **Mobile shell**: Capacitor 8 (iOS + Android)

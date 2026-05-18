@@ -85,22 +85,21 @@ export const glassInput = (overrides = {}) => ({
 })
 
 // Subscription plans — pricing reflects the unit economics of Deepgram
-// (streaming transcription) plus a smart-routed AI stack.
+// (streaming transcription) plus a DeepSeek-only AI stack.
 //
 // Cost model (per MAU at average usage):
 //   Deepgram + Cloud Run : $0.008 / minute of audio (~$0.48 / hour)
-//   Gemini 2.5 Flash     : ~$0.0006 / query  (default, ~80% of traffic)
-//   DeepSeek V3 (chat)   : ~$0.0019 / query  (medium reasoning, ~15%)
+//   DeepSeek V3 (chat)   : ~$0.0019 / query  (default, ~95% of traffic)
 //   DeepSeek R1 (reason) : ~$0.0038 / query  (deep analysis, ~5%)
-//   Gemini 2.5 Pro       : ~$0.011 / query   (multimodal / very-long
-//                          context fallback — not routed by default)
 //   Firestore + Functions: ~$0.05 / MAU (fixed, ignorable)
 //
-// Routing happens server-side in functions/src/aiChat.ts: a free
-// regex pre-filter handles obvious simple/complex cases; ambiguous
-// questions get a 1-shot Flash classification (~$0.00005 each) that
-// picks the right model. The `models` array below mirrors the
-// server-side TIER_MODELS table — keep them in sync when retiering.
+// Routing happens server-side in functions/src/aiChat.ts via a free
+// regex heuristic: simple/ambiguous questions go to V3, explicitly
+// complex prompts (or very long ones) escalate to R1 when the user's
+// tier allows. There is no LLM-based classifier any more — V3 is
+// cheap enough that paying for a "decide which model" call would wipe
+// out the saving. The `models` array below mirrors the server-side
+// TIER_MODELS table — keep them in sync when retiering.
 //
 // Hard caps below sit above expected average usage with healthy margin
 // while staying break-even at the worst case (full-cap power user).
@@ -145,7 +144,7 @@ export const PLANS = [
       recordingMinutesPerMonth: 360,
       aiChatQueriesPerMonth:    50,
       deepSummariesPerMonth:    10,
-      models:                   ['flash'],
+      models:                   ['v3'],
       autoRoute:                false,
       priority:                 false,
     },
@@ -167,7 +166,7 @@ export const PLANS = [
       recordingMinutesPerMonth: 1200,
       aiChatQueriesPerMonth:    200,
       deepSummariesPerMonth:    50,
-      models:                   ['flash', 'v3', 'r1'],
+      models:                   ['v3', 'r1'],
       autoRoute:                true,
       priority:                 false,
     },
@@ -190,7 +189,7 @@ export const PLANS = [
       recordingMinutesPerMonth: 4800,
       aiChatQueriesPerMonth:    800,
       deepSummariesPerMonth:    -1,    // -1 = unlimited
-      models:                   ['flash', 'v3', 'r1', 'pro'],
+      models:                   ['v3', 'r1'],
       autoRoute:                true,
       priority:                 true,
     },
