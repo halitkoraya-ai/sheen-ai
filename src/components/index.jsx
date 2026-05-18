@@ -1,6 +1,23 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { C, FONTS } from '../constants.js'
 import logoUrl from '../logo.png'
+
+// ── Live clock for the web-preview status bar ────────────────────────
+// Native builds don't render <StatusBar /> (Capacitor's StatusBar plugin
+// + the OS draw the real one); the hook is only used by the web preview.
+// We re-render every 30 s — half the minute, so worst-case the displayed
+// minute is at most 30 s stale, which is invisible to a human reader.
+const formatHM = (d) =>
+  `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+
+const useLiveClock = () => {
+  const [time, setTime] = useState(() => formatHM(new Date()))
+  useEffect(() => {
+    const id = setInterval(() => setTime(formatHM(new Date())), 30_000)
+    return () => clearInterval(id)
+  }, [])
+  return time
+}
 
 // ── Sheen AI Logo ────────────────────────────────────────────────────
 export const Logo = ({ size = 80, glow = false }) => (
@@ -18,9 +35,11 @@ export const Logo = ({ size = 80, glow = false }) => (
 )
 
 // ── Status Bar ───────────────────────────────────────────────────────
-export const StatusBar = () => (
+export const StatusBar = () => {
+  const time = useLiveClock()
+  return (
   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 24px 0', fontSize: 12, fontWeight: 600, color: C.p9, fontFamily: FONTS.body }}>
-    <span>9:41</span>
+    <span>{time}</span>
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       {/* Signal */}
       <svg width="15" height="11" viewBox="0 0 15 11" fill="none">
@@ -37,7 +56,8 @@ export const StatusBar = () => (
       </svg>
     </div>
   </div>
-)
+  )
+}
 
 // ── Screen Header with back button ───────────────────────────────────
 export const Header = ({ title, onBack, right }) => (
